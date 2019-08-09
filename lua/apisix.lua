@@ -2,17 +2,24 @@
 
 local require = require
 local core = require("apisix.core")
-local router = require("apisix.route").get
 local plugin = require("apisix.plugin")
-local load_balancer = require("apisix.balancer").run
-local service_fetch = require("apisix.service").get
+local service_fetch = require("apisix.http.service").get
+local admin_init = require("apisix.admin.init")
+local get_var = require("resty.ngxvar").fetch
+local router = require("apisix.http.router")
 local ngx = ngx
+local get_method = ngx.req.get_method
+local ngx_exit = ngx.exit
+local ngx_ERROR = ngx.ERROR
+local math = math
+local error = error
+local load_balancer
 
 
-local _M = {version = 0.1}
+local _M = {version = 0.2}
 
 
-function _M.init()
+function _M.http_init()
     require("resty.core")
 
     if require("ffi").os == "Linux" then
@@ -22,33 +29,77 @@ function _M.init()
     require("jit.opt").start("minstitch=2", "maxtrace=4000",
                              "maxrecord=8000", "sizemcode=64",
                              "maxmcode=4000", "maxirconst=1000")
+
+    --
+    local seed, err = core.utils.get_seed_from_urandom()
+    if not seed then
+        core.log.warn('failed to get seed from urandom: ', err)
+        seed = ngx.now() * 1000 + ngx.worker.pid()
+    end
+    math.randomseed(seed)
+
+    core.id.init()
 end
 
 
-function _M.init_worker()
-    require("apisix.route").init_worker()
-    require("apisix.balancer").init_worker()
+function _M.http_init_worker()
+    local we = require("resty.worker.events")
+    local ok, err = we.configure({shm = "worker-events", interval = 0.1})
+    if not ok then
+        error("failed to init worker event: " .. err)
+    end
+
+    load_balancer = require("apisix.http.balancer").run
+
+    require("apisix.admin.init").init_worker()
+    require("apisix.http.balancer").init_worker()
+
+    router.init_worker()
+    require("apisix.http.service").init_worker()
     require("apisix.plugin").init_worker()
-    require("apisix.service").init_worker()
+    require("apisix.consumer").init_worker()
 end
 
 
-local function run_plugin(phase, filter_plugins, api_ctx)
+local function run_plugin(phase, plugins, api_ctx)
     api_ctx = api_ctx or ngx.ctx.api_ctx
     if not api_ctx then
         return
     end
 
-    filter_plugins = filter_plugins or api_ctx.filter_plugins
-    if not filter_plugins then
+    plugins = plugins or api_ctx.plugins
+    if not plugins then
+        return api_ctx
+    end
+
+    if phase == "balancer" then
+        local balancer_name = api_ctx.balancer_name
+        local balancer_plugin = api_ctx.balancer_plugin
+        if balancer_name and balancer_plugin then
+            local phase_fun = balancer_plugin[phase]
+            phase_fun(balancer_plugin, api_ctx)
+            return api_ctx
+        end
+
+        for i = 1, #plugins, 2 do
+            local phase_fun = plugins[i][phase]
+            if phase_fun and
+               (not balancer_name or balancer_name == plugins[i].name) then
+                phase_fun(plugins[i + 1], api_ctx)
+                if api_ctx.balancer_name == plugins[i].name then
+                    api_ctx.balancer_plugin = plugins[i]
+                    return api_ctx
+                end
+            end
+        end
         return api_ctx
     end
 
     if phase ~= "log" then
-        for i = 1, #filter_plugins, 2 do
-            local phase_fun = filter_plugins[i][phase]
+        for i = 1, #plugins, 2 do
+            local phase_fun = plugins[i][phase]
             if phase_fun then
-                local code, body = phase_fun(filter_plugins[i + 1], api_ctx)
+                local code, body = phase_fun(plugins[i + 1], api_ctx)
                 if code or body then
                     core.response.exit(code, body)
                 end
@@ -57,10 +108,10 @@ local function run_plugin(phase, filter_plugins, api_ctx)
         return api_ctx
     end
 
-    for i = 1, #filter_plugins, 2 do
-        local phase_fun = filter_plugins[i][phase]
+    for i = 1, #plugins, 2 do
+        local phase_fun = plugins[i][phase]
         if phase_fun then
-            phase_fun(filter_plugins[i + 1], api_ctx)
+            phase_fun(plugins[i + 1], api_ctx)
         end
     end
 
@@ -68,38 +119,55 @@ local function run_plugin(phase, filter_plugins, api_ctx)
 end
 
 
-function _M.access_phase()
+function _M.http_ssl_phase()
     local ngx_ctx = ngx.ctx
     local api_ctx = ngx_ctx.api_ctx
 
     if api_ctx == nil then
         api_ctx = core.tablepool.fetch("api_ctx", 0, 32)
+        ngx_ctx.api_ctx = api_ctx
+    end
+
+    local ok, err = router.router_ssl.match(api_ctx)
+    if not ok then
+        if err then
+            core.log.error("failed to fetch ssl config: ", err)
+        end
+        return ngx_exit(ngx_ERROR)
+    end
+end
+
+
+function _M.http_access_phase()
+    local ngx_ctx = ngx.ctx
+    local api_ctx = ngx_ctx.api_ctx
+
+    if api_ctx == nil then
+        api_ctx = core.tablepool.fetch("api_ctx", 0, 32)
+        ngx_ctx.api_ctx = api_ctx
     end
 
     core.ctx.set_vars_meta(api_ctx)
-    ngx_ctx.api_ctx = api_ctx
 
-    local method = api_ctx.var.method
-    local uri =  api_ctx.var.uri
-    api_ctx.uri_parse_param = core.tablepool.fetch("uri_parse_param", 0, 4)
-    -- local host = api_ctx.var.host -- todo: support host
-    local ok = router():dispatch2(api_ctx.uri_parse_param, method, uri, api_ctx)
-    if not ok then
-        core.log.info("not find any matched route")
-        return core.response.exit(404)
-    end
+    router.router_http.match(api_ctx)
 
-    -- core.log.warn("route: ",
-    --               core.json.encode(api_ctx.matched_route, true))
+    core.log.info("route: ",
+                  core.json.delay_encode(api_ctx.matched_route, true))
 
     local route = api_ctx.matched_route
     if not route then
-        return
+        return core.response.exit(404)
     end
 
     if route.value.service_id then
-        -- core.log.warn("matched route: ", core.json.encode(route.value))
+        -- core.log.info("matched route: ", core.json.delay_encode(route.value))
         local service = service_fetch(route.value.service_id)
+        if not service then
+            core.log.error("failed to fetch service configuration by ",
+                           "id: ", route.value.service_id)
+            return core.response.exit(404)
+        end
+
         local changed
         route, changed = plugin.merge_service_route(service, route)
         api_ctx.matched_route = route
@@ -112,8 +180,8 @@ function _M.access_phase()
                               .. service.value.id
         else
             api_ctx.conf_type = "service"
-            api_ctx.conf_version = route.modifiedIndex
-            api_ctx.conf_id = route.value.id
+            api_ctx.conf_version = service.modifiedIndex
+            api_ctx.conf_id = service.value.id
         end
 
     else
@@ -122,33 +190,76 @@ function _M.access_phase()
         api_ctx.conf_id = route.value.id
     end
 
-    api_ctx.filter_plugins = plugin.filter(route)
+    local plugins = core.tablepool.fetch("plugins", 32, 0)
+    api_ctx.plugins = plugin.filter(route, plugins)
 
-    run_plugin("rewrite", api_ctx.filter_plugins, api_ctx)
-    run_plugin("access", api_ctx.filter_plugins, api_ctx)
+    run_plugin("rewrite", plugins, api_ctx)
+    run_plugin("access", plugins, api_ctx)
 end
 
-function _M.header_filter_phase()
+
+function _M.http_header_filter_phase()
     run_plugin("header_filter")
 end
 
-function _M.log_phase()
+
+function _M.http_log_phase()
     local api_ctx = run_plugin("log")
     if api_ctx then
-        core.tablepool.release("uri_parse_param", api_ctx.uri_parse_param)
+        if api_ctx.uri_parse_param then
+            core.tablepool.release("uri_parse_param", api_ctx.uri_parse_param)
+        end
+
         core.ctx.release_vars(api_ctx)
+        if api_ctx.plugins then
+            core.tablepool.release("plugins", api_ctx.plugins)
+        end
+
         core.tablepool.release("api_ctx", api_ctx)
     end
 end
 
-function _M.balancer_phase()
+
+function _M.http_balancer_phase()
     local api_ctx = ngx.ctx.api_ctx
-    if not api_ctx or not api_ctx.filter_plugins then
-        return
+    if not api_ctx then
+        core.log.error("invalid api_ctx")
+        return core.response.exit(500)
     end
 
-    -- TODO: fetch the upstream by upstream_id
+    -- first time
+    if not api_ctx.balancer_name then
+        run_plugin("balancer", nil, api_ctx)
+        if api_ctx.balancer_name then
+            return
+        end
+    end
+
+    if api_ctx.balancer_name and api_ctx.balancer_name ~= "default" then
+        return run_plugin("balancer", nil, api_ctx)
+    end
+
+    api_ctx.balancer_name = "default"
     load_balancer(api_ctx.matched_route, api_ctx)
 end
+
+
+do
+    local router
+
+function _M.http_admin()
+    if not router then
+        router = admin_init.get()
+    end
+
+    -- core.log.info("uri: ", get_var("uri"), " method: ", get_method())
+    local ok = router:dispatch(get_var("uri"), get_method())
+    if not ok then
+        ngx_exit(404)
+    end
+end
+
+end -- do
+
 
 return _M
