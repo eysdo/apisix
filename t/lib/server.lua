@@ -22,6 +22,19 @@ function _M.limit_conn()
     ngx.say("hello world")
 end
 
+function _M.plugin_proxy_rewrite()
+    ngx.say("uri: ", ngx.var.uri)
+    ngx.say("host: ", ngx.var.host)
+    ngx.say("scheme: ", ngx.var.scheme)
+end
+
+function _M.plugin_proxy_rewrite_args()
+    ngx.say("uri: ", ngx.var.uri)
+    local args = ngx.req.get_uri_args()
+    for k,v in pairs(args) do
+        ngx.say(k, ": ", v)
+    end
+end
 
 function _M.status()
     ngx.say("ok")
@@ -30,6 +43,24 @@ end
 function _M.sleep1()
     ngx.sleep(1)
     ngx.say("ok")
+end
+
+function _M.uri()
+    -- ngx.sleep(1)
+    ngx.say("uri: ", ngx.var.uri)
+    local headers = ngx.req.get_headers()
+    for k, v in pairs(headers) do
+        ngx.say(k, ": ", v)
+    end
+end
+
+function _M.old_uri()
+    -- ngx.sleep(1)
+    ngx.say("uri: ", ngx.var.uri)
+    local headers = ngx.req.get_headers()
+    for k, v in pairs(headers) do
+        ngx.say(k, ": ", v)
+    end
 end
 
 
@@ -59,7 +90,12 @@ end
 
 function _M.go()
     local action = string.sub(ngx.var.uri, 2)
-    if not _M[action] then
+    local find = string.find(action, "/", 1, true)
+    if find then
+        action = string.sub(action, 1, find - 1)
+    end
+
+    if not action or not _M[action] then
         return ngx.exit(404)
     end
 

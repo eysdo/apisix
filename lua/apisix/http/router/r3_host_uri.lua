@@ -47,8 +47,14 @@ local function push_valid_route(route)
         core.table.insert(only_uri_routes, {
             path = route.value.uri,
             method = route.value.methods,
+            remote_addr = route.value.remote_addr,
             handler = function (params, api_ctx)
-                api_ctx.matched_params = params
+                --[[
+                    If you need to get the parameters, you need to replace the first parameter
+                    nil of dispatch2 with an empty table and open the following comment, but
+                    this will affect performance.
+                --]]
+                -- api_ctx.matched_params = params
                 api_ctx.matched_route = route
             end
         })
@@ -64,8 +70,14 @@ local function push_valid_route(route)
     core.table.insert(host_uri_routes, {
         path = "/" .. host .. route.value.uri,
         method = route.value.methods,
+        remote_addr = route.value.remote_addr,
         handler = function (params, api_ctx)
-            api_ctx.matched_params = params
+            --[[
+                If you need to get the parameters, you need to replace the first parameter
+                nil of dispatch2 with an empty table and open the following comment, but
+                this will affect performance.
+            --]]
+            -- api_ctx.matched_params = params
             api_ctx.matched_route = route
         end
     })
@@ -104,6 +116,7 @@ function _M.match(api_ctx)
 
     core.table.clear(match_opts)
     match_opts.method = api_ctx.var.method
+    match_opts.remote_addr = api_ctx.var.remote_addr
 
     local host_uri = "/" .. str_reverse(api_ctx.var.host) .. api_ctx.var.uri
     local ok = host_uri_router:dispatch2(nil, host_uri, match_opts, api_ctx)
@@ -130,11 +143,12 @@ function _M.routes()
 end
 
 
-function _M.init_worker()
+function _M.init_worker(filter)
     local err
     user_routes, err = core.config.new("/routes", {
             automatic = true,
-            item_schema = core.schema.route
+            item_schema = core.schema.route,
+            filter = filter,
         })
     if not user_routes then
         error("failed to create etcd instance for fetching /routes : " .. err)

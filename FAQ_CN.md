@@ -14,7 +14,7 @@ APISIX 基于 etcd 来完成配置的保存和同步，而不是 postgres 或者
 
 ## APISIX 的性能怎么样？
 
-APISIX 设计和开发的目标之一，就是业界最高的性能。具体测试数据见这里：https://github.com/iresty/apisix/blob/master/doc/benchmark-cn.md。
+APISIX 设计和开发的目标之一，就是业界最高的性能。具体测试数据见这里：[benchmark](https://github.com/iresty/apisix/blob/master/doc/benchmark-cn.md)
 
 APISIX 是当前性能最好的 API 网关，单核 QPS 达到 2.3 万，平均延时仅有 0.6 毫秒。
 
@@ -26,3 +26,14 @@ APISIX 是当前性能最好的 API 网关，单核 QPS 达到 2.3 万，平均�
 
 当然可以，APISIX 提供了灵活的自定义插件，方便开发者和企业编写自己的逻辑。
 
+## 我们为什么选择 etcd 作为配置中心？
+
+对于配置中心，配置存储只是最基本功能，APISIX 还需要下面几个特性：
+
+1. 集群支持
+2. 事务
+3. 历史版本管理
+4. 变化通知
+5. 高性能
+
+APISIX 需要一个配置中心，上面提到的很多功能是传统关系型数据库和KV数据库是无法提供的。与 etcd 同类软件还有 Consul、ZooKeeper等，更详细比较可以参考这里：[etcd why](https://github.com/etcd-io/etcd/blob/master/Documentation/learning/why.md#comparison-chart)，在将来也许会支持其他配置存储方案。
