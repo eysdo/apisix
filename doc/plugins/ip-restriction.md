@@ -1,4 +1,23 @@
-[中文](ip-restriction-cn.md)
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+-->
+
+[Chinese](ip-restriction-cn.md)
 
 # Summary
 - [**Name**](#name)
@@ -16,22 +35,20 @@ in CIDR notation like 10.10.10.0/24 can be used(will support IPv6 soon).
 
 ## Attributes
 
-|name     |option  |description|
+|Name     |Requirement  |Description|
 |---------|--------|-----------|
-|whitelist|option  |List of IPs or CIDR ranges to whitelist|
-|blacklist|option  |List of IPs or CIDR ranges to blacklist|
+|whitelist|optional  |List of IPs or CIDR ranges to whitelist|
+|blacklist|optional  |List of IPs or CIDR ranges to blacklist|
 
 One of `whitelist` or `blacklist` must be specified, and they can not work
 together.
 
 ## How To Enable
 
-Two steps are required:
-
-1. creates a route or service object, and enable plugin `ip-restriction`.
+Creates a route or service object, and enable plugin `ip-restriction`.
 
 ```shell
-curl http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
+curl http://127.0.0.1:9080/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "uri": "/index.html",
     "upstream": {
@@ -70,11 +87,58 @@ HTTP/1.1 403 Forbidden
 {"message":"Your IP address is not allowed"}
 ```
 
+## Change the restriction
+
+When you want to change the whitelisted ip, it is very simple,
+you can send the corresponding json configuration in the plugin configuration,
+no need to restart the service, it will take effect immediately:
+
+```shell
+curl http://127.0.0.1:9080/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
+{
+    "uri": "/index.html",
+    "upstream": {
+        "type": "roundrobin",
+        "nodes": {
+            "127.0.0.1:1980": 1
+        }
+    },
+    "plugins": {
+        "ip-restriction": {
+            "whitelist": [
+                "127.0.0.2",
+                "113.74.26.106/24"
+            ]
+        }
+    }
+}'
+```
+
+## Test Plugin after restriction change
+
+Requests to `127.0.0.2`:
+
+```shell
+$ curl http://127.0.0.2:9080/index.html
+HTTP/1.1 200 OK
+...
+```
+
+Requests to `127.0.0.1`:
+
+```shell
+$ curl http://127.0.0.1:9080/index.html -i
+HTTP/1.1 403 Forbidden
+...
+{"message":"Your IP address is not allowed"}
+```
+
+
 ## Disable Plugin
 
 When you want to disable the `ip-restriction` plugin, it is very simple,
- you can delete the corresponding json configuration in the plugin configuration,
-  no need to restart the service, it will take effect immediately:
+you can delete the corresponding json configuration in the plugin configuration,
+no need to restart the service, it will take effect immediately:
 
 ```shell
 $ curl http://127.0.0.1:2379/v2/keys/apisix/routes/1 -X PUT -d value='

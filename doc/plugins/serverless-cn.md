@@ -1,3 +1,22 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+-->
+
 [English](serverless.md)
 
 # serverless
@@ -38,16 +57,14 @@ ngx.say(count)
 下面是一个示例，在指定的 route 上开启了 serverless 插件:
 
 ```shell
-curl -i http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
+curl -i http://127.0.0.1:9080/apisix/admin/routes/1  -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "uri": "/index.html",
     "plugins": {
-        "plugins": {
-            "serverless-pre-function": {
-                "phase": "rewrite",
-                "functions" : ["return function() ngx.log(ngx.ERR, 'serverless pre function'); end"]
-            }
-        },
+        "serverless-pre-function": {
+            "phase": "rewrite",
+            "functions" : ["return function() ngx.log(ngx.ERR, \"serverless pre function\"); end"]
+        }
     },
     "upstream": {
         "type": "roundrobin",
@@ -71,7 +88,7 @@ curl -i http://127.0.0.1:9080/index.html
 当你想去掉插件的时候，很简单，在插件的配置中把对应的 json 配置删除即可，无须重启服务，即刻生效：
 
 ```shell
-curl http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
+curl http://127.0.0.1:9080/apisix/admin/routes/1  -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "methods": ["GET"],
     "uri": "/index.html",

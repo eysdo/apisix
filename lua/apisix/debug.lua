@@ -1,6 +1,23 @@
+--
+-- Licensed to the Apache Software Foundation (ASF) under one or more
+-- contributor license agreements.  See the NOTICE file distributed with
+-- this work for additional information regarding copyright ownership.
+-- The ASF licenses this file to You under the Apache License, Version 2.0
+-- (the "License"); you may not use this file except in compliance with
+-- the License.  You may obtain a copy of the License at
+--
+--     http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+--
 local yaml         = require("tinyyaml")
 local log          = require("apisix.core.log")
 local json         = require("apisix.core.json")
+local profile      = require("apisix.core.profile")
 local process      = require("ngx.process")
 local lfs          = require("lfs")
 local io           = io
@@ -13,7 +30,7 @@ local setmetatable = setmetatable
 local pcall        = pcall
 local ipairs       = ipairs
 local unpack       = unpack
-local debug_yaml_path = ngx.config.prefix() .. "conf/debug.yaml"
+local debug_yaml_path = profile:yaml_path("debug")
 local debug_yaml
 local debug_yaml_ctime
 
@@ -53,8 +70,13 @@ local function read_debug_yaml()
     end
 
     if not found_end_flag then
+        f:seek("set")
+        local size = f:seek("end")
         f:close()
-        log.notice("missing valid end flag in file ", debug_yaml_path)
+
+        if size > 8 then
+            log.warn("missing valid end flag in file ", debug_yaml_path)
+        end
         return
     end
 
@@ -64,7 +86,7 @@ local function read_debug_yaml()
 
     local debug_yaml_new = yaml.parse(yaml_config)
     if not debug_yaml_new then
-        log.error("failed to parse the content of file conf/debug.yaml")
+        log.error("failed to parse the content of file " .. debug_yaml_path)
         return
     end
 

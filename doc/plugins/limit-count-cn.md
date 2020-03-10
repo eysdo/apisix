@@ -1,3 +1,22 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+-->
+
 [English](limit-count.md)
 # limit-count
 
@@ -13,9 +32,10 @@
 |key           |必选     |是用来做请求计数的依据，当前接受的 key 有: "remote_addr", "server_addr", "http_x_real_ip", "http_x_forwarded_for"。|
 |rejected_code |可选     |T当请求超过阈值被拒绝时，返回的 HTTP 状态码，默认是 503|
 |policy        |可选     |用于检索和增加限制的速率限制策略。可选的值有：`local`(计数器被以内存方式保存在节点本地，默认选项) 和 `redis`(计数器保存在 Redis 服务节点上，从而可以跨节点共享结果，通常用它来完成全局限速).|
-|redis.host    |可选     |当使用 `redis` 限速策略时，该属性是 Redis 服务节点的地址。|
-|redis.port    |可选     |当使用 `redis` 限速策略时，该属性是 Redis 服务节点的端口，默认端口 6379。|
-|redis.timeout |可选     |当使用 `redis` 限速策略时，该属性是 Redis 服务节点以毫秒为单位的超时时间，默认是 1000 ms（1 秒）。|
+|redis_host    |可选     |当使用 `redis` 限速策略时，该属性是 Redis 服务节点的地址。|
+|redis_port    |可选     |当使用 `redis` 限速策略时，该属性是 Redis 服务节点的端口，默认端口 6379。|
+|redis_password|可选     |当使用 `redis` 限速策略时，该属性是 Redis 服务节点的密码。|
+|redis_timeout |可选     |当使用 `redis` 限速策略时，该属性是 Redis 服务节点以毫秒为单位的超时时间，默认是 1000 ms（1 秒）。|
 
 ### 示例
 
@@ -23,7 +43,7 @@
 下面是一个示例，在指定的 `route` 上开启了 `limit count` 插件:
 
 ```shell
-curl -i http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
+curl -i http://127.0.0.1:9080/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "uri": "/index.html",
     "plugins": {
@@ -54,7 +74,7 @@ curl -i http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
 请看下面例子：
 
 ```shell
-curl -i http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
+curl -i http://127.0.0.1:9080/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "uri": "/index.html",
     "plugins": {
@@ -64,11 +84,10 @@ curl -i http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
             "rejected_code": 503,
             "key": "remote_addr",
             "policy": "redis",
-            "redis": {
-                "host": "127.0.0.1",
-                "port": 6379,
-                "timeout": 1001
-            }
+            "redis_host": "127.0.0.1",
+            "redis_port": 6379,
+            "redis_password": "password",
+            "redis_timeout": 1001
         }
     },
     "upstream": {
@@ -120,7 +139,7 @@ Server: APISIX web server
 当你想去掉 `limit count` 插件的时候，很简单，在插件的配置中把对应的 json 配置删除即可，无须重启服务，即刻生效：
 
 ```shell
-curl http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
+curl http://127.0.0.1:9080/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "methods": ["GET"],
     "uri": "/index.html",

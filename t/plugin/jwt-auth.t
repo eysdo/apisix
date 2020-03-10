@@ -1,3 +1,19 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 use t::APISIX 'no_plan';
 
 repeat_each(2);
@@ -13,9 +29,7 @@ __DATA__
     location /t {
         content_by_lua_block {
             local plugin = require("apisix.plugins.jwt-auth")
-            local conf = {
-
-            }
+            local conf = {}
 
             local ok, err = plugin.check_schema(conf)
             if not ok then
@@ -50,7 +64,7 @@ qr/{"algorithm":"HS256","secret":"\w+-\w+-\w+-\w+-\w+","exp":86400}/
 --- request
 GET /t
 --- response_body
-invalid "type" in docuement at pointer "#/key"
+property "key" validation failed: wrong type: expected string, got number
 done
 --- no_error_log
 [error]
@@ -148,7 +162,14 @@ qr/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\w+.\w+/
 
 
 
-=== TEST 6: verify, missing token
+=== TEST 6: test for unsupported method
+--- request
+PATCH /apisix/plugin/jwt/sign?key=user-key
+--- error_code: 404
+
+
+
+=== TEST 7: verify, missing token
 --- request
 GET /hello
 --- error_code: 401
@@ -159,7 +180,7 @@ GET /hello
 
 
 
-=== TEST 7: verify: invalid JWT token
+=== TEST 8: verify: invalid JWT token
 --- request
 GET /hello?jwt=invalid-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4cCI6MTU2Mzg3MDUwMX0.pPNVvh-TQsdDzorRwa-uuiLYiEBODscp9wv0cwD6c68
 --- error_code: 401
@@ -170,7 +191,7 @@ GET /hello?jwt=invalid-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtl
 
 
 
-=== TEST 8: verify: expired JWT token
+=== TEST 9: verify: expired JWT token
 --- request
 GET /hello?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4cCI6MTU2Mzg3MDUwMX0.pPNVvh-TQsdDzorRwa-uuiLYiEBODscp9wv0cwD6c68
 --- error_code: 401
@@ -181,7 +202,7 @@ GET /hello?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4
 
 
 
-=== TEST 9: verify (in argument)
+=== TEST 10: verify (in argument)
 --- request
 GET /hello?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4cCI6MTg3OTMxODU0MX0.fNtFJnNmJgzbiYmGB0Yjvm-l6A6M4jRV1l4mnVFSYjs
 --- response_body
@@ -191,7 +212,31 @@ hello world
 
 
 
-=== TEST 10: verify (in header)
+=== TEST 11: verify (in header)
+--- request
+GET /hello
+--- more_headers
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4cCI6MTg3OTMxODU0MX0.fNtFJnNmJgzbiYmGB0Yjvm-l6A6M4jRV1l4mnVFSYjs
+--- response_body
+hello world
+--- no_error_log
+[error]
+
+
+
+=== TEST 12: verify (in cookie)
+--- request
+GET /hello
+--- more_headers
+Cookie: jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4cCI6MTg3OTMxODU0MX0.fNtFJnNmJgzbiYmGB0Yjvm-l6A6M4jRV1l4mnVFSYjs
+--- response_body
+hello world
+--- no_error_log
+[error]
+
+
+
+=== TEST 13: verify (in header without Bearer)
 --- request
 GET /hello
 --- more_headers
@@ -203,12 +248,82 @@ hello world
 
 
 
-=== TEST 11: verify (in cookie)
+=== TEST 14: verify (header with bearer)
 --- request
 GET /hello
 --- more_headers
-Cookie: jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4cCI6MTg3OTMxODU0MX0.fNtFJnNmJgzbiYmGB0Yjvm-l6A6M4jRV1l4mnVFSYjs
+Authorization: bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4cCI6MTg3OTMxODU0MX0.fNtFJnNmJgzbiYmGB0Yjvm-l6A6M4jRV1l4mnVFSYjs
 --- response_body
 hello world
+--- no_error_log
+[error]
+
+
+
+=== TEST 15: verify (invalid bearer token)
+--- request
+GET /hello
+--- more_headers
+Authorization: bearer invalid-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4cCI6MTg3OTMxODU0MX0.fNtFJnNmJgzbiYmGB0Yjvm-l6A6M4jRV1l4mnVFSYjs
+--- error_code: 401
+--- response_body
+{"message":"invalid header: invalid-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}
+--- no_error_log
+[error]
+
+
+
+=== TEST 16: delete a exist consumer
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.sleep(1)
+
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/consumers',
+                ngx.HTTP_PUT,
+                [[{
+                    "username": "jack",
+                    "plugins": {
+                        "jwt-auth": {
+                            "key": "user-key",
+                            "secret": "my-secret-key"
+                        }
+                    }
+                }]]
+            )
+            ngx.say("code: ", code < 300, " body: ", body)
+
+            code, body = t('/apisix/admin/consumers',
+                ngx.HTTP_PUT,
+                [[{
+                    "username": "chen",
+                    "plugins": {
+                        "jwt-auth": {
+                            "key": "chen-key",
+                            "secret": "chen-key"
+                        }
+                    }
+                }]]
+            )
+            ngx.say("code: ", code < 300, " body: ", body)
+
+            code, body = t('/apisix/admin/consumers/jack',
+                ngx.HTTP_DELETE)
+            ngx.say("code: ", code < 300, " body: ", body)
+
+            ngx.sleep(1)
+            code, body = t('/apisix/plugin/jwt/sign?key=chen-key',
+                ngx.HTTP_GET)
+            ngx.say("code: ", code < 300, " body: ", body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+code: true body: passed
+code: true body: passed
+code: true body: passed
+code: true body: passed
 --- no_error_log
 [error]

@@ -1,3 +1,22 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+-->
+
 [English](key-auth.md)
 
 # 目录
@@ -23,7 +42,7 @@
 1. 创建一个 consumer 对象，并设置插件 `key-auth` 的值。
 
 ```shell
-curl http://127.0.0.1:9080/apisix/admin/consumers -X PUT -d '
+curl http://127.0.0.1:9080/apisix/admin/consumers -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "username": "jack",
     "plugins": {
@@ -43,7 +62,7 @@ curl http://127.0.0.1:9080/apisix/admin/consumers -X PUT -d '
 2. 创建 route 或 service 对象，并开启 `key-auth` 插件。
 
 ```shell
-curl http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
+curl http://127.0.0.1:9080/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "methods": ["GET"],
     "uri": "/index.html",
@@ -65,7 +84,7 @@ curl http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
 下面是一个正常通过 `key-auth` 验证的请求:
 
 ```shell
-$ curl http://127.0.0.2:9080/index.html -H 'apikey: keykey' -i
+$ curl http://127.0.0.2:9080/index.html -H 'apikey: auth-one' -i
 HTTP/1.1 200 OK
 ...
 ```

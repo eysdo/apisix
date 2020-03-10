@@ -1,3 +1,22 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+-->
+
 [English](https.md)
 ### HTTPS
 
@@ -14,7 +33,7 @@ SNI(Server Name Indication)是用来改善 SSL 和 TLS 的一项特性，它允�
 * `sni`: SSL 证书所指定的域名，注意在设置这个参数之前，你需要确保这个证书对应的私钥是有效的。
 
 ```shell
-curl http://127.0.0.1:9080/apisix/admin/ssl/1 -X PUT -d '
+curl http://127.0.0.1:9080/apisix/admin/ssl/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "cert": "...",
     "key": "....",
@@ -43,15 +62,15 @@ curl --resolve 'test.com:9443:127.0.0.1' https://test.com:9443/hello  -vvv
 > Accept: */*
 ```
 
-### 范域名
+### 泛域名
 
-一个 SSL 证书的域名也可能包含范域名，如`*.test.com`，它代表所有以`test.com`结尾的域名都可以使用该证书。
+一个 SSL 证书的域名也可能包含泛域名，如`*.test.com`，它代表所有以`test.com`结尾的域名都可以使用该证书。
 比如`*.test.com`，可以匹配 `www.test.com`、`mail.test.com`甚至`a.b.test.com`。
 
 看下面这个例子，请注意 `sni` 这个属性:
 
 ```shell
-curl http://127.0.0.1:9080/apisix/admin/ssl/1 -X PUT -d '
+curl http://127.0.0.1:9080/apisix/admin/ssl/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "cert": "...",
     "key": "....",

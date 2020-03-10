@@ -1,3 +1,22 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+-->
+
 [English](proxy-rewrite.md)
 # proxy-rewrite
 
@@ -6,11 +25,12 @@
 #### 配置参数
 |名字    |可选|说明|
 |-------         |-----|------|
-|scheme          |可选| 转发到上游的新`schema` 协议，可以是`http`或`https`，默认`http`协议|
-|uri             |可选| 转发到上游的新`uri` 地址|
-|host            |可选| 转发到上游的新`host` 地址，例如：`iresty.com` |
-|enable_websocket|可选| 是否启用`websocket`（布尔值），默认不启用|
-|headers         |可选| 转发到上游的新`headers`，可以设置多个。头信息如果存在将重写，不存在则添加。|
+|scheme          |可选| 转发到上游的新 `schema` 协议，可以是 `http` 或 `https`，默认 `http` 协议|
+|uri             |可选| 转发到上游的新 `uri` 地址|
+|regex_uri       |可选| 转发到上游的新 `uri` 地址, 使用正则表达式匹配来自客户端的uri，当匹配成功后使用模板替换转发到上游的uri, 未匹配成功时将客户端请求的uri转发至上游。当`uri`和`regex_uri`同时存在时，`uri`优先被使用。例如：["^/iresty/(.*)/(.*)/(.*)","/$1-$2-$3"] 第一个元素代表匹配来自客户端请求的uri正则表达式，第二个元素代表匹配成功后转发到上游的uri模板|
+|host            |可选| 转发到上游的新 `host` 地址，例如：`iresty.com` |
+|enable_websocket|可选| 是否启用 `websocket`（布尔值），默认不启用|
+|headers         |可选| 转发到上游的新`headers`，可以设置多个。头信息如果存在将重写，不存在则添加。想要删除某个 header 的话，把对应的值设置为空字符串即可|
 
 ### 示例
 
@@ -18,7 +38,7 @@
 下面是一个示例，在指定的 route 上开启了 `proxy rewrite` 插件:
 
 ```shell
-curl http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
+curl http://127.0.0.1:9080/apisix/admin/routes/1  -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "methods": ["GET"],
     "uri": "/test/index.html",
@@ -30,7 +50,8 @@ curl http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
             "enable_websocket": true,
             "headers": {
                 "X-Api-Version": "v1",
-                "X-Api-Engine": "apisix"
+                "X-Api-Engine": "apisix",
+                "X-Api-useless": ""
             }
         }
     },
@@ -60,7 +81,7 @@ curl -X GET http://127.0.0.1:9080/test/index.html
 当你想去掉 `proxy rewrite` 插件的时候，很简单，在插件的配置中把对应的 json 配置删除即可，无须重启服务，即刻生效：
 
 ```shell
-curl http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
+curl http://127.0.0.1:9080/apisix/admin/routes/1  -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "methods": ["GET"],
     "uri": "/test/index.html",

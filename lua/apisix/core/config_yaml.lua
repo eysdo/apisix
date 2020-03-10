@@ -1,5 +1,19 @@
--- Copyright (C) Yuansheng Wang
-
+--
+-- Licensed to the Apache Software Foundation (ASF) under one or more
+-- contributor license agreements.  See the NOTICE file distributed with
+-- this work for additional information regarding copyright ownership.
+-- The ASF licenses this file to You under the Apache License, Version 2.0
+-- (the "License"); you may not use this file except in compliance with
+-- the License.  You may obtain a copy of the License at
+--
+--     http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+--
 local config_local = require("apisix.core.config_local")
 local yaml         = require("tinyyaml")
 local log          = require("apisix.core.log")
@@ -7,6 +21,7 @@ local json         = require("apisix.core.json")
 local process      = require("ngx.process")
 local new_tab      = require("table.new")
 local check_schema = require("apisix.core.schema").check
+local profile      = require("apisix.core.profile")
 local lfs          = require("lfs")
 local exiting      = ngx.worker.exiting
 local insert_tab   = table.insert
@@ -22,7 +37,7 @@ local pcall        = pcall
 local io           = io
 local ngx          = ngx
 local re_find      = ngx.re.find
-local apisix_yaml_path  = ngx.config.prefix() .. "conf/apisix.yaml"
+local apisix_yaml_path = profile:yaml_path("apisix")
 local created_obj  = {}
 
 
@@ -86,7 +101,7 @@ local function read_apisix_yaml(pre_mtime)
 
     local apisix_yaml_new = yaml.parse(yaml_config)
     if not apisix_yaml_new then
-        log.error("failed to parse the content of file conf/apisix.yaml")
+        log.error("failed to parse the content of file " .. apisix_yaml_path)
         return
     end
 
@@ -102,7 +117,7 @@ local function sync_data(self)
 
     if not apisix_yaml_ctime then
         log.warn("wait for more time")
-        return nil, "failed to read local file conf/apisix.yaml"
+        return nil, "failed to read local file " .. apisix_yaml_path
     end
 
     if self.conf_version == apisix_yaml_ctime then
@@ -198,7 +213,7 @@ local function _automatic_fetch(premature, self)
         local ok, ok2, err = pcall(sync_data, self)
         if not ok then
             err = ok2
-            log.error("failed to fetch data from local file apisix.yaml: ",
+            log.error("failed to fetch data from local file " .. apisix_yaml_path .. ": ",
                       err, ", ", tostring(self))
             ngx_sleep(3)
             break
@@ -206,7 +221,7 @@ local function _automatic_fetch(premature, self)
         elseif not ok2 and err then
             if err ~= "timeout" and err ~= "Key not found"
                and self.last_err ~= err then
-                log.error("failed to fetch data from local file apisix.yaml: ",
+                log.error("failed to fetch data from local file " .. apisix_yaml_path .. ": ",
                           err, ", ", tostring(self))
             end
 

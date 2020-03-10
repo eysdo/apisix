@@ -1,4 +1,24 @@
-[English](prometheus.md) 
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+-->
+
+[English](prometheus.md)
+
 # prometheus
 
 此插件是提供符合prometheus数据格式的监控指标数据。
@@ -14,7 +34,7 @@
 例子如下:
 
 ```shell
-curl http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
+curl http://127.0.0.1:9080/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -d '
 {
     "uri": "/hello",
     "plugins": {
@@ -39,7 +59,10 @@ curl http://127.0.0.1:9080/apisix/admin/routes/1 -X PUT -d '
 
 ## 如何提取指标数据
 
-我们可以从指定的url中提取指标数据 `/apisix/prometheus/metrics`.
+我们可以从指定的 url 中提取指标数据 `/apisix/prometheus/metrics`:
+```
+curl -i http://127.0.0.1:9080/apisix/prometheus/metrics
+```
 
 把改uri地址配置到 prometheus 中去,就会自动完成指标数据提取.
 
@@ -62,7 +85,15 @@ scrape_configs:
 
 ### Grafana 面板
 
-.插件导出的指标可以在 Grafana 进行图形化绘制显示。https://grafana.com/dashboards/7424
+插件导出的指标可以在 Grafana 进行图形化绘制显示。
+
+你可以到 [Grafana meta](https://grafana.com/grafana/dashboards/11719) 下载 `Grafana` 元数据.
+
+![](../../doc/images/plugin/grafana_1.png)
+
+![](../../doc/images/plugin/grafana_2.png)
+
+![](../../doc/images/plugin/grafana_3.png)
 
 ### 可有的指标
 

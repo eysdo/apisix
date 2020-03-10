@@ -1,9 +1,24 @@
--- Copyright (C) Yuansheng Wang
-
+--
+-- Licensed to the Apache Software Foundation (ASF) under one or more
+-- contributor license agreements.  See the NOTICE file distributed with
+-- this work for additional information regarding copyright ownership.
+-- The ASF licenses this file to You under the Apache License, Version 2.0
+-- (the "License"); you may not use this file except in compliance with
+-- the License.  You may obtain a copy of the License at
+--
+--     http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+--
 local core      = require("apisix.core")
 local ipairs    = ipairs
 local error     = error
 local ngx_exit  = ngx.exit
+local tonumber  = tonumber
 local user_routes
 
 
@@ -26,7 +41,7 @@ local function match_opts(route, api_ctx)
 
     -- todo: use resty-ipmatcher to support multiple ip address
     if route.value.server_port and
-       route.value.server_port ~= vars.server_port then
+       route.value.server_port ~= tonumber(vars.server_port) then
         return false
     end
 
@@ -38,7 +53,7 @@ function _M.match(api_ctx)
     local routes = _M.routes()
     if not routes then
         core.log.info("not find any user stream route")
-        return ngx_exit(1)
+        return ngx_exit(200)
     end
     core.log.info("stream routes: ", core.json.delay_encode(routes))
 
